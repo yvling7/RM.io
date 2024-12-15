@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机抽取系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background: #f5f6fa;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin: 30px 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #34495e;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .section {
+            width: 400px;
+            padding: 30px;
+            border-radius: 15px;
+            background: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+        }
+
+        button {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 15px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .result {
+            margin-top: 25px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            min-height: 50px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-name {
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .loading {
+            animation: rolling 0.2s linear infinite;
+            background: linear-gradient(45deg, #f1f1f1 0%, #ffffff 100%);
+        }
+
+        @keyframes rolling {
+            0% { transform: translateY(0); opacity: 1; }
+            25% { transform: translateY(-2px); opacity: 0.9; }
+            50% { transform: translateY(0); opacity: 1; }
+            75% { transform: translateY(2px); opacity: 0.9; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .section {
+                width: 90%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🎲 随机抽取系统</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>👥 随机抽人</h2>
+            <label class="file-label">
+                📁 上传人名文件
+                <input type="file" id="peopleFile" accept=".txt" onchange="handleFileSelect('peopleFile', 'peopleFileName')">
+            </label>
+            <div id="peopleFileName" class="file-name"></div>
+            <button onclick="startRolling('people')" id="peopleButton">🎯 开始抽取</button>
+            <div id="peopleResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 随机抽任务</h2>
+            <label class="file-label">
+                📁 上传任务文件
+                <input type="file" id="taskFile" accept=".txt" onchange="handleFileSelect('taskFile', 'taskFileName')">
+            </label>
+            <div id="taskFileName" class="file-name"></div>
+            <button onclick="startRolling('task')" id="taskButton">🎯 开始抽取</button>
+            <div id="taskResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let peopleList = [];
+        let taskList = [];
+        let isRolling = false;
+        let rollingInterval;
+        let currentRollingType = null;
+
+        function handleFileSelect(fileInputId, fileNameId) {
+            const fileInput = document.getElementById(fileInputId);
+            const fileNameDiv = document.getElementById(fileNameId);
+            const file = fileInput.files[0];
+            
+            if (file) {
+                fileNameDiv.textContent = `已选择: ${file.name}`;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    const items = content.trim().split('\n').filter(item => item.trim() !== '');
+                    if (fileInputId === 'peopleFile') {
+                        peopleList = items;
+                    } else {
+                        taskList = items;
+                    }
+                };
+                reader.readAsText(file, 'UTF-8');
+            }
+        }
+
+        function startRolling(type) {
+            if (currentRollingType && currentRollingType !== type) {
+                return; // 如果另一个在滚动，则不允许开始新的滚动
+            }
+
+            const resultId = type === 'people' ? 'peopleResult' : 'taskResult';
+            const buttonId = type === 'people' ? 'peopleButton' : 'taskButton';
+            const items = type === 'people' ? peopleList : taskList;
+            const result = document.getElementById(resultId);
+            const button = document.getElementById(buttonId);
+
+            if (items.length === 0) {
+                result.textContent = '请先上传文件！';
+                return;
+            }
+
+            if (isRolling) {
+                // 停止滚动
+                clearInterval(rollingInterval);
+                isRolling = false;
+                currentRollingType = null;
+                button.textContent = '开始抽取';
+                result.classList.remove('loading');
+                
+                // 确保最后一个结果清晰可见
+                const finalIndex = Math.floor(Math.random() * items.length);
+                result.textContent = items[finalIndex];
+            } else {
+                // 开始滚动
+                isRolling = true;
+                currentRollingType = type;
+                button.textContent = '停止';
+                result.classList.add('loading');
+                
+                let lastIndex = -1;
+                rollingInterval = setInterval(() => {
+                    let randomIndex;
+                    // 确保不会连续显示相同的项
+                    do {
+                        randomIndex = Math.floor(Math.random() * items.length);
+                    } while (randomIndex === lastIndex && items.length > 1);
+                    
+                    lastIndex = randomIndex;
+                    result.textContent = items[randomIndex];
+                }, 100); // 调整间隔时间为100ms，使显示更清晰
+            }
+        }
+    </script>
+</body>
+</html> 
